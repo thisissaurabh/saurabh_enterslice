@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -65,37 +66,105 @@ class CameraManagerController extends GetxController {
 
 
 
-  Future<File> _addLatLongToImage(File originalImage, double lat, double lng) async {
-    print("check 3 ");
-    final imageBytes = await originalImage.readAsBytes();
-    img.Image? image = img.decodeImage(imageBytes);
 
-    if (image == null) throw Exception("failed");
+  Future<File> _addLatLongToImage(File originalImageFile, double lat, double lng, String address) async {
+    final originalImageBytes = await originalImageFile.readAsBytes();
+    final originalImage = await decodeImageFromList(originalImageBytes);
 
-    final text = 'Lat: $lat, Lng: $lng';
+    final ByteData data = await rootBundle.load('assets/images/images.jpg');
+    final Uint8List bytes = data.buffer.asUint8List();
+    final mapImage = await decodeImageFromList(bytes);
 
-    final font = img.arial24;
-    img.drawString(
-      image,
-      text,
-      font: font,
-      x: 10,
-      y: image.height - 30,
-      color: img.ColorInt16.rgb(255, 255, 0),
 
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final paint = Paint();
+    canvas.drawImage(originalImage, Offset.zero, paint);
+
+
+    final textStyle = ui.TextStyle(
+      color: const Color(0xFFFFFFFF),
+      fontSize: 24,
     );
-    print("check 4 ");
-    final tempDir = await getTemporaryDirectory();
-    final newPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}_latlong.jpg';
-    final updatedImage = File(newPath);
-    await updatedImage.writeAsBytes(img.encodeJpg(image, quality: 90));
+    final paragraphStyle = ui.ParagraphStyle(
+      textDirection: TextDirection.ltr,
+    );
 
-    return updatedImage;
+    const double padding = 10;
+    const double lineSpacing = 5;
+    const double previewImageHeight = 100;
+    const double previewImageWidth = 100;
+
+
+    final addressBuilder = ui.ParagraphBuilder(paragraphStyle)
+      ..pushStyle(textStyle)
+      ..addText(address);
+    final addressParagraph = addressBuilder.build();
+    addressParagraph.layout(ui.ParagraphConstraints(width: originalImage.width - previewImageWidth - (padding * 3)));
+
+    final latLngBuilder = ui.ParagraphBuilder(paragraphStyle)
+      ..pushStyle(textStyle)
+      ..addText('Lat ${lat.toStringAsFixed(6)}° Long ${lng.toStringAsFixed(6)}°');
+    final latLngParagraph = latLngBuilder.build();
+    latLngParagraph.layout(ui.ParagraphConstraints(width: originalImage.width - previewImageWidth - (padding * 3)));
+
+
+    final now = DateTime.now();
+    final formattedDateTime = '${now.day.toString().padLeft(2, '0')}/'
+        '${now.month.toString().padLeft(2, '0')}/'
+        '${now.year} '
+        '${(now.hour % 12 == 0 ? 12 : now.hour % 12).toString().padLeft(2, '0')}:' // fixed
+        '${now.minute.toString().padLeft(2, '0')} '
+        '${now.hour >= 12 ? 'PM' : 'AM'} GMT +05:30';
+
+    final dateTimeBuilder = ui.ParagraphBuilder(paragraphStyle)
+      ..pushStyle(textStyle)
+      ..addText(formattedDateTime);
+    final dateTimeParagraph = dateTimeBuilder.build();
+    dateTimeParagraph.layout(ui.ParagraphConstraints(width: originalImage.width - previewImageWidth - (padding * 3)));
+
+
+    final double totalTextHeight = addressParagraph.height + latLngParagraph.height + dateTimeParagraph.height + (lineSpacing * 2);
+    final double totalContentHeight = previewImageHeight > totalTextHeight ? previewImageHeight : totalTextHeight;
+
+
+    final double contentY = originalImage.height - totalContentHeight - padding;
+
+
+    final double imageX = padding;
+    final double imageY = contentY;
+    final Rect src = Rect.fromLTWH(0, 0, mapImage.width.toDouble(), mapImage.height.toDouble());
+    final Rect dst = Rect.fromLTWH(imageX, imageY, previewImageWidth, previewImageHeight);
+    canvas.drawImageRect(mapImage, src, dst, paint);
+
+
+    final double textStartX = imageX + previewImageWidth + padding;
+    final double textStartY = contentY;
+
+    canvas.drawParagraph(addressParagraph, Offset(textStartX, textStartY));
+    canvas.drawParagraph(latLngParagraph, Offset(textStartX, textStartY + addressParagraph.height + lineSpacing));
+    canvas.drawParagraph(dateTimeParagraph, Offset(
+      textStartX,
+      textStartY + addressParagraph.height + latLngParagraph.height + (lineSpacing * 2),
+    ));
+
+
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(originalImage.width, originalImage.height);
+    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+    final pngBytes = byteData!.buffer.asUint8List();
+
+
+    final tempDir = await getTemporaryDirectory();
+    final newPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}_final.png';
+    final resultFile = File(newPath);
+    await resultFile.writeAsBytes(pngBytes);
+
+    return resultFile;
   }
 
 
-
-  Future<XFile?> takePicture(double lat, double lng) async {
+  Future<XFile?> takePicture(double lat, double lng,String address) async {
     print("check 5 ");
     await requestStoragePermission();
     if (cameraController == null || !cameraController!.value.isInitialized) return null;
@@ -126,7 +195,7 @@ class CameraManagerController extends GetxController {
       }
 
       File croppedImageFile = File(croppedFile.path);
-      final updatedImageFile = await _addLatLongToImage(croppedImageFile, lat, lng);
+      final updatedImageFile = await _addLatLongToImage(croppedImageFile, lat, lng,address);
 
 
       final savedFile = await saveImageToGallery(XFile(updatedImageFile.path));

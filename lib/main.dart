@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 import 'dart:io';
-import 'package:flutter/services.dart';
+
 import 'camera_latlong_controller.dart';
 import 'lat_long_camera.dart';
 import 'location_controller.dart';
@@ -31,12 +30,11 @@ Future<void> main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
+      title: 'Saurabh Enterslice',
       theme: ThemeData(
         // This is the theme of your application.
         //

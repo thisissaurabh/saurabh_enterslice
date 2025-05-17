@@ -43,6 +43,7 @@ dependencies:
   image: ^4.1.3
   geocoding: ^2.0.5
   image_cropper: ^8.0.0
+  image_editor_plus: ^1.0.4
 
 
 dev_dependencies:
@@ -86,4 +87,5 @@ flutter:
   assets:
     - assets/fonts/Roboto_Condensed-Regular.ttf
     - assets/fonts/arial24.fnt
+    - assets/images/images.jpg
 

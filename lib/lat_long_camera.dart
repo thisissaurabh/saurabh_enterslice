@@ -77,7 +77,7 @@ class _CameraScreenState extends State<CameraScreen> {
           if (!storageGranted) {
             print('check1');
           }
-          final file = await cameraManager.takePicture(locationController.latitude.value,locationController.longitude.value);
+          final file = await cameraManager.takePicture(locationController.latitude.value,locationController.longitude.value,locationController.address.value);
           if (file != null) {
             Get.snackbar("Captured", file.path);
           }
